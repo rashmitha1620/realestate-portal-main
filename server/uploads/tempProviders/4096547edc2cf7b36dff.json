@@ -1,0 +1,22 @@
+{
+  "tempId": "4096547edc2cf7b36dff",
+  "provider": {
+    "name": "Marripati Lokesh",
+    "email": "marripatilokesh@gmail.com",
+    "phone": "+919100656740",
+    "password": "Loki@123",
+    "serviceCategory": "Home Services",
+    "selectedServices": [
+      "Electrical Work"
+    ],
+    "referralMarketingExecutiveName": "Jamuna Sree",
+    "referralMarketingExecutiveId": "ME-49157"
+  },
+  "files": {
+    "aadhar": "uploads/service-docs/1765736632468-404671.png",
+    "voterId": "uploads/service-docs/1765736632471-818672.jpeg",
+    "pan": "uploads/service-docs/1765736632488-266807.jpg"
+  },
+  "paymentGateway": "cashfree",
+  "createdAt": "2025-12-14T18:23:52.494Z"
+}

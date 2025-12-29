@@ -1,0 +1,15 @@
+{
+  "tempId": "2551a73d1f19bdce719f",
+  "pendingAgent": {
+    "name": "Sravani",
+    "email": "sravani@gmail.com",
+    "phone": "09100656740",
+    "password": "Loki@123",
+    "profession": "Farmer",
+    "customProfession": "",
+    "referralMarketingExecutiveName": "Jamuna Sree",
+    "referralMarketingExecutiveId": "ME-49157"
+  },
+  "paymentGateway": "cashfree",
+  "createdAt": "2025-12-13T12:30:04.786Z"
+}

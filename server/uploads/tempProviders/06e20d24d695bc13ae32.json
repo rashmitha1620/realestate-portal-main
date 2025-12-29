@@ -1,0 +1,20 @@
+{
+  "tempId": "06e20d24d695bc13ae32",
+  "provider": {
+    "name": "G Anusha",
+    "email": "anua0094@gmal.com",
+    "phone": "+916305375946",
+    "password": "Loki@123",
+    "serviceCategory": "Technology & Smart Home Services",
+    "selectedServices": [
+      "Smart Home Automation"
+    ],
+    "referralMarketingExecutiveName": "Jamuna Sree",
+    "referralMarketingExecutiveId": "ME-49157"
+  },
+  "files": {
+    "aadhar": "uploads/service-docs/1765612210812-616237.png",
+    "voterId": "uploads/service-docs/1765612210814-386076.jpg",
+    "pan": "uploads/service-docs/1765612210815-60653.jpg"
+  }
+}

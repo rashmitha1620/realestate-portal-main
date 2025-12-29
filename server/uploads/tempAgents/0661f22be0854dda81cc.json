@@ -1,0 +1,15 @@
+{
+  "tempId": "0661f22be0854dda81cc",
+  "pendingAgent": {
+    "name": "Mounika",
+    "email": "yagnammounika@gmail.com",
+    "phone": "09100656740",
+    "password": "Loki@123",
+    "profession": "Student",
+    "customProfession": "",
+    "referralMarketingExecutiveName": "Jamuna Sree",
+    "referralMarketingExecutiveId": "ME-49157"
+  },
+  "paymentGateway": "cashfree",
+  "createdAt": "2025-12-14T15:28:04.216Z"
+}

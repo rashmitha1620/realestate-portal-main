@@ -1,0 +1,20 @@
+{
+  "tempId": "81e23e735525c3bc7234",
+  "provider": {
+    "name": "Marripati Lokesh",
+    "email": "marripatilokesh237@gmail.com",
+    "phone": "09100656740",
+    "password": "Loki@123",
+    "serviceCategory": "Technology & Smart Home Services",
+    "selectedServices": [
+      "CCTV Installation"
+    ],
+    "referralMarketingExecutiveName": "Jamuna Sree",
+    "referralMarketingExecutiveId": "ME-49157"
+  },
+  "files": {
+    "aadhar": "uploads/service-docs/1764621140394-778082.jpeg",
+    "voterId": "uploads/service-docs/1764621140395-720735.jpeg",
+    "pan": "uploads/service-docs/1764621140396-741980.jpg"
+  }
+}

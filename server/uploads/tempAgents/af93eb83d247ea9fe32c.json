@@ -1,0 +1,15 @@
+{
+  "tempId": "af93eb83d247ea9fe32c",
+  "pendingAgent": {
+    "name": "Marripati Lokesh",
+    "email": "marripatilokesh237@gmail.com",
+    "phone": "09100656740",
+    "password": "Loki",
+    "profession": "Farmer",
+    "customProfession": "",
+    "referralMarketingExecutiveName": "Jamuna Sree",
+    "referralMarketingExecutiveId": "ME-49157"
+  },
+  "paymentGateway": "cashfree",
+  "createdAt": "2025-12-13T18:46:54.550Z"
+}

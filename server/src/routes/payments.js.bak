@@ -1,0 +1,255 @@
+// server/src/routes/payments.js
+const express = require("express");
+const Razorpay = require("razorpay");
+const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+const multer = require("multer");
+
+const Agent = require("../models/Agent");
+const ServiceProvider = require("../models/ServiceProvider");
+
+const router = express.Router();
+
+
+
+router.use((req, res, next) => {
+    console.log("🔥 Payments route HIT:", req.method, req.url);
+    next();
+});
+
+/* ---------------------------
+   Multer (store temp uploaded files)
+   --------------------------- */
+const upload = multer({ dest: path.join(__dirname, "..", "..", "uploads", "service-provider") });
+
+/* ============================================================
+   RAZORPAY INSTANCE
+   ============================================================ */
+const rz = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+function verifyPaymentSignature(orderId, paymentId, signature) {
+  const expected = crypto
+    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+    .update(orderId + "|" + paymentId)
+    .digest("hex");
+  return expected === signature;
+}
+
+/* ============================================================
+   AGENT: Create order (keeps existing working behavior)
+   POST /api/payments/agent-subscription
+   ============================================================ */
+router.post("/agent-subscription", async (req, res) => {
+  try {
+    const pendingAgent = req.body.pendingAgent;
+    if (!pendingAgent) return res.status(400).json({ error: "Missing agent data" });
+
+    const amount = (req.body.amount || 1500) * 100;
+    const order = await rz.orders.create({
+      amount,
+      currency: "INR",
+      receipt: "agt_" + Date.now().toString(36),
+    });
+
+    console.log("Agent order created:", order.id);
+    return res.json({ success: true, order, key_id: process.env.RAZORPAY_KEY_ID });
+  } catch (err) {
+    console.error("Agent order error:", err);
+    return res.status(500).json({ error: "Failed to create order" });
+  }
+});
+
+/* ============================================================
+   AGENT: Verify payment
+   POST /api/payments/agent/verify
+   expects JSON body
+   ============================================================ */
+router.post("/agent/verify", express.json({ limit: "10mb" }), async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, pendingAgent } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature)
+      return res.status(400).json({ error: "Missing required fields" });
+
+    if (!verifyPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature))
+      return res.status(400).json({ error: "Invalid signature" });
+
+    const agent = new Agent({
+      agentId: "AGT-" + Math.floor(1000 + Math.random() * 9000),
+      name: pendingAgent.name,
+      email: pendingAgent.email,
+      phone: pendingAgent.phone,
+      password: pendingAgent.password,
+      profession: pendingAgent.profession,
+      subscription: {
+        active: true,
+        paidAt: new Date(),
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+      },
+    });
+
+    await agent.save();
+    console.log("Agent created:", agent._id.toString());
+
+    return res.json({ success: true, message: "Agent subscription activated", agentId: agent._id });
+  } catch (err) {
+    console.error("Agent verify error:", err);
+    return res.status(500).json({ error: "Verification failed" });
+  }
+});
+
+/* ============================================================
+   SERVICE PROVIDER: Create order (multipart/form-data)
+   POST /api/payments/service-provider/create-order
+   Accepts files: aadhar, voter, pan and text fields
+   ============================================================ */
+router.post(
+  "/service-provider/create-order",
+  upload.fields([
+    { name: "aadhar", maxCount: 1 },
+    { name: "voter", maxCount: 1 },
+    { name: "pan", maxCount: 1 },
+  ]),
+  async (req, res) => {
+    try {
+      // Debug logs to ensure route is reached and multer parsed the request
+      console.log("SERVICE PROVIDER CREATE ORDER - REQ BODY:", req.body ? Object.keys(req.body) : req.body);
+      console.log("SERVICE PROVIDER CREATE ORDER - REQ FILES:", req.files ? Object.keys(req.files) : req.files);
+
+      const { name, email, phone, password, serviceTypes } = req.body;
+
+      if (!name || !email || !phone || !password)
+        return res.status(400).json({ error: "Missing required fields" });
+
+      const aadhar = req.files?.aadhar?.[0];
+      const voter = req.files?.voter?.[0];
+
+      if (!aadhar || !voter) return res.status(400).json({ error: "Aadhar & Voter are required" });
+
+      // Ensure temp dirs exist
+      ensureDir(path.join(__dirname, "..", "..", "uploads", "tempProviders"));
+      ensureDir(path.join(__dirname, "..", "..", "uploads", "service-docs"));
+
+      // Move uploaded files to service-docs (optional; currently keep multer dest path)
+      // Note: multer saved file paths are accessible via aadhar.path etc.
+      const tempId = crypto.randomBytes(8).toString("hex");
+
+      const tempObj = {
+        tempId,
+        pendingProvider: { name, email, phone, password, serviceTypes },
+        files: {
+          aadhar: aadhar.path,
+          voterId: voter.path,
+          pan: req.files?.pan?.[0]?.path || null,
+        },
+        createdAt: new Date(),
+      };
+
+      const tempPath = path.join("uploads", "tempProviders", `${tempId}.json`);
+      fs.writeFileSync(tempPath, JSON.stringify(tempObj, null, 2), "utf8");
+
+      // Create Razorpay order
+      const amount = (process.env.SUBSCRIPTION_AMOUNT || 1500) * 100;
+      const order = await rz.orders.create({
+        amount,
+        currency: "INR",
+        receipt: `sp_${tempId}`,
+        notes: { tempId },
+      });
+
+      console.log("Service provider order created:", order.id, "tempId:", tempId);
+
+      return res.json({
+        success: true,
+        tempId,
+        order,
+        key_id: process.env.RAZORPAY_KEY_ID,
+      });
+    } catch (err) {
+      console.error("Service Provider Order Error:", err);
+      return res.status(500).json({ error: "Failed to create service provider order" });
+    }
+  }
+);
+
+
+/* ============================================================
+   SERVICE PROVIDER: Verify payment (JSON)
+   POST /api/payments/service-provider/verify
+   Body: { tempId, razorpay_order_id, razorpay_payment_id, razorpay_signature }
+   ============================================================ */
+router.post("/service-provider/verify", express.json({ limit: "10mb" }), async (req, res) => {
+  try {
+    const { tempId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    if (!tempId) return res.status(400).json({ error: "Missing tempId" });
+
+    if (!verifyPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature)) {
+      return res.status(400).json({ error: "Invalid signature" });
+    }
+
+    const tempFile = path.join("uploads", "tempProviders", `${tempId}.json`);
+    if (!fs.existsSync(tempFile)) return res.status(400).json({ error: "Temp registration not found" });
+
+    const tempData = JSON.parse(fs.readFileSync(tempFile, "utf8"));
+    const p = tempData.pendingProvider;
+
+    // Prevent duplicate registration if email already active
+    const existing = await ServiceProvider.findOne({ email: p.email });
+    if (existing && existing.status === "active") {
+      try { fs.unlinkSync(tempFile); } catch (e) {}
+      return res.json({ success: true, providerId: existing._id, message: "Already registered" });
+    }
+
+    const provider = new ServiceProvider({
+      name: p.name,
+      email: p.email,
+      phone: p.phone,
+      password: p.password,
+      serviceTypes: p.serviceTypes ? p.serviceTypes.split(",").map((s) => s.trim()) : [],
+      documents: tempData.files,
+      status: "active",
+      subscription: {
+        active: true,
+        paidAt: new Date(),
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+      },
+    });
+
+    await provider.save();
+
+    // cleanup temp
+    try { fs.unlinkSync(tempFile); } catch (e) {}
+
+    console.log("Service Provider created:", provider._id.toString());
+
+    return res.json({ success: true, providerId: provider._id, message: "Service Provider subscription activated" });
+  } catch (err) {
+    console.error("Verify Error:", err);
+    return res.status(500).json({ error: "Verification failed" });
+  }
+});
+
+/* ============================================================
+   WEBHOOK (optional)
+   ============================================================ */
+router.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
+  // validate webhook signature here if configured
+  console.log("Razorpay webhook received");
+  return res.sendStatus(200);
+});
+
+module.exports = router;
